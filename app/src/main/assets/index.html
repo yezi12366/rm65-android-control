@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="RM65-6F Android 直连可视化遥控台">
+  <title>RM65 遥控台</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2309141f'/%3E%3Cpath d='M8 24h16M11 23v-6l5-3 4-7 3 2-4 8-5 3v3' fill='none' stroke='%234ee2b8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">RM65-6F · ANDROID DIRECT CONTROL</p>
+        <h1>RM65 · 机械臂遥控台</h1>
+      </div>
+      <div class="connection-cluster">
+        <span id="connectionBadge" class="badge offline"><i></i>未连接</span>
+        <span id="robotAddress" class="robot-address">192.168.33.80:8080</span>
+        <button id="actionLibraryButton" class="button ghost">动作库</button>
+        <button id="alarmButton" class="button ghost" type="button">报警状态</button>
+        <button id="settingsButton" class="button ghost">连接设置</button>
+        <button id="connectButton" class="button primary">连接机械臂</button>
+        <button id="disconnectButton" class="button ghost" disabled>断开</button>
+        <button id="shortcutButton" class="button ghost">添加桌面图标</button>
+      </div>
+    </header>
+
+    <section id="messageBar" class="message-bar" aria-live="polite">
+      手机连接机械臂网口后，点击“连接机械臂”。实体急停必须保持可用。
+    </section>
+
+    <div class="workspace">
+      <section class="panel visual-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">LIVE POSE</p>
+            <h2>机械臂实时姿态</h2>
+          </div>
+          <span id="motionBadge" class="badge neutral">静止</span>
+        </div>
+
+        <div class="arm-stage">
+          <canvas id="arm3DCanvas" class="hidden" aria-label="RM65 三维姿态，单指旋转视角，双指缩放"></canvas>
+          <canvas id="armCanvas" width="900" height="540" aria-label="机械臂姿态兼容视图"></canvas>
+          <div class="pose-view-info"><span id="poseRenderMode">姿态视图</span><span id="poseDataState">未连接 · 零位示意</span></div>
+          <div id="poseViewToolbar" class="pose-view-toolbar hidden" aria-label="三维观察视角">
+            <button type="button" data-view="reset">复位视角</button>
+            <button type="button" data-view="front">正视</button>
+            <button type="button" data-view="top">俯视</button>
+            <button type="button" data-view="in" aria-label="放大模型">＋</button>
+            <button type="button" data-view="out" aria-label="缩小模型">−</button>
+          </div>
+          <span id="poseViewHint" class="pose-view-hint"></span>
+          <div class="axis-legend"><span class="x">X</span><span class="y">Y</span><span class="z">Z</span></div>
+        </div>
+
+        <div id="jointReadout" class="joint-readout"></div>
+        <div class="pose-readout">
+          <div><span>X mm</span><strong id="poseX">—</strong></div>
+          <div><span>Y mm</span><strong id="poseY">—</strong></div>
+          <div><span>Z mm</span><strong id="poseZ">—</strong></div>
+          <div><span>RX °</span><strong id="poseRx">—</strong></div>
+          <div><span>RY °</span><strong id="poseRy">—</strong></div>
+          <div><span>RZ °</span><strong id="poseRz">—</strong></div>
+        </div>
+      </section>
+
+      <section class="control-stack">
+        <article class="panel control-panel">
+          <div class="panel-heading compact">
+            <div>
+              <p class="section-kicker">DEAD-MAN CONTROL</p>
+              <h2>夹爪控制</h2>
+            </div>
+            <div class="speed-control">
+              <span>速度</span>
+              <button id="speedMinus" class="speed-step" type="button" aria-label="降低速度">−</button>
+              <strong id="speedValue">5%</strong>
+              <button id="speedPlus" class="speed-step" type="button" aria-label="提高速度">+</button>
+            </div>
+          </div>
+
+          <div class="jog-scroll">
+          <div class="mode-tabs" role="tablist">
+            <button class="tab active" data-tab="move" role="tab" aria-selected="true">移动夹爪</button>
+            <button class="tab" data-tab="orientation" role="tab" aria-selected="false">调整朝向</button>
+            <button class="tab" data-tab="joint" role="tab" aria-selected="false">关节调整</button>
+          </div>
+
+          <div id="controlOptions" class="control-options">
+            <label class="frame-controls" aria-label="移动参考方向">
+              <select id="teachFrameSelect" disabled aria-label="移动参考方向"><option value="">待确认方向</option><option value="0">工作方向</option><option value="1">夹爪方向</option></select>
+              <span id="teachFrameStatus" class="sr-only">等待确认</span>
+            </label>
+            <div id="motionPolicies" class="motion-policies" aria-label="连续移动或固定距离步进">
+              <button class="motion-policy active" data-step="0" aria-pressed="true">按住移动</button>
+              <button class="motion-policy" data-step="1" aria-pressed="false">1 mm</button>
+              <button class="motion-policy" data-step="5" aria-pressed="false">5 mm</button>
+              <button class="motion-policy" data-step="10" aria-pressed="false">10 mm</button>
+            </div>
+          </div>
+          <div id="moveControls">
+            <div class="endpoint-layout">
+              <div class="direction-pad" aria-label="平面移动方向">
+                <button id="moveForward" class="jog-button direction-button forward" data-mode="position" data-axis="x" data-direction="1" disabled><span class="direction-icon">↑</span><span class="direction-name">前移</span><small>+X</small></button>
+                <button id="moveLeft" class="jog-button direction-button left" data-mode="position" data-axis="y" data-direction="1" disabled><span class="direction-icon">←</span><span class="direction-name">左移</span><small>+Y</small></button>
+                <div class="pad-center"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 14v-4a6 6 0 0 1 12 0v4M8 14h16v13H8zM16 19v3"/></svg><strong>保持朝向</strong></div>
+                <button id="moveRight" class="jog-button direction-button right" data-mode="position" data-axis="y" data-direction="-1" disabled><span class="direction-icon">→</span><span class="direction-name">右移</span><small>−Y</small></button>
+                <button id="moveBack" class="jog-button direction-button back" data-mode="position" data-axis="x" data-direction="-1" disabled><span class="direction-icon">↓</span><span class="direction-name">后移</span><small>−X</small></button>
+              </div>
+              <div class="height-controls" aria-label="第三轴移动">
+                <button id="moveUp" class="jog-button direction-button height-button" data-mode="position" data-axis="z" data-direction="1" disabled><span class="direction-icon">⇧</span><span class="direction-name">上升</span><small>+Z</small></button>
+                <button id="moveDown" class="jog-button direction-button height-button" data-mode="position" data-axis="z" data-direction="-1" disabled><span class="direction-icon">⇩</span><span class="direction-name">下降</span><small>−Z</small></button>
+              </div>
+            </div>
+          </div>
+          <div id="orientationControls" class="control-grid hidden"></div>
+          <div id="jointControls" class="control-grid hidden"></div>
+          <div id="coupledBendControls" class="coupled-bend hidden">
+            <div class="bend-heading"><strong>J2 / J3 / J5 联动弯曲</strong><span>试用 · 1:1:1</span></div>
+            <p>速度跟随顶部设置 · 每次各 ≤10° · 夹爪位置及朝向会改变</p>
+            <div class="bend-buttons">
+              <button id="bendNegative" class="button" data-coupled="true" data-direction="-1" disabled>按住联动 −</button>
+              <button id="bendPositive" class="button" data-coupled="true" data-direction="1" disabled>按住联动 ＋</button>
+            </div>
+            <p>＋：三轴角度同时增大，−：同时减小；松手停止，停稳后可继续</p>
+          </div>
+          <p id="holdHint" class="hold-hint">按住移动 · 松手确认停稳 · 单次最多 5 秒</p>
+          <p id="directionHint" class="direction-hint">方向以当前工作坐标系为准</p>
+          </div>
+          <p id="resetPoseLabel" class="reset-pose-label">复位姿态尚未保存 · 夹爪单独控制</p>
+          <div class="motion-actions">
+            <button id="saveResetButton" class="button" disabled>保存复位</button>
+            <button id="zeroButton" class="zero-button" disabled>◎ 按住复位</button>
+            <button id="stopButton" class="stop-button" disabled>■ 立即停止</button>
+          </div>
+        </article>
+
+        <article class="panel gripper-panel">
+          <div class="panel-heading compact">
+            <div>
+              <p class="section-kicker">END EFFECTOR</p>
+              <h2>原装夹爪</h2>
+            </div>
+            <span id="gripperBadge" class="badge neutral">未知</span>
+          </div>
+
+          <div class="gripper-state">
+            <div><span>当前位置</span><strong id="gripperPosition">—</strong></div>
+            <div><span>当前夹力</span><strong id="gripperForce">—</strong></div>
+            <div><span>温度</span><strong id="gripperTemperature">—</strong></div>
+          </div>
+
+          <p id="gripperDetail" class="gripper-detail" aria-live="polite">连接机械臂后自动检测夹爪</p>
+          <div class="gripper-recovery">
+            <button id="gripperRefresh" class="button ghost" type="button" disabled>重新检测</button>
+            <button id="gripperDiagnostics" class="button ghost" type="button">复制夹爪诊断</button>
+          </div>
+          <button id="gripperInitialize" class="button primary hidden" type="button" disabled>启用并张开夹爪</button>
+
+          <div class="gripper-actions">
+            <button id="gripperOpen" class="button ghost" disabled>张开夹爪</button>
+            <button id="gripperClose" class="button ghost" disabled>闭合夹爪</button>
+          </div>
+        </article>
+      </section>
+    </div>
+
+    <footer class="status-footer">
+      <span><i id="healthDot"></i><strong>安全状态：</strong><span id="healthText">等待连接</span></span>
+      <span><strong>状态数据：</strong><span id="stateAgeText">—</span></span>
+      <span><strong>按住保护：</strong><span id="watchdogText">0.5 秒 · 单次 ≤5 秒</span></span>
+      <span><strong>坐标系：</strong><span id="frameText">—</span></span>
+      <span class="app-version"><strong>版本：</strong>v1.15.4</span>
+    </footer>
+  </main>
+
+  <section id="recordingBar" class="action-session-bar hidden" aria-live="polite">
+    <div><strong id="recordingTitle">动作录制</strong><span id="recordingSummary">0 个节点</span></div>
+    <div class="session-actions">
+      <button id="resumeRecordingButton" class="button ghost hidden">继续录制</button>
+      <button id="finishDragSegmentButton" class="button ghost hidden">结束当前拖动段</button>
+      <button id="nextDragSegmentButton" class="button ghost hidden">录制下一拖动段</button>
+      <select id="waitDuration" class="compact-select" aria-label="等待时长">
+        <option value="500">等待 0.5 秒</option><option value="1000" selected>等待 1 秒</option>
+        <option value="2000">等待 2 秒</option><option value="3000">等待 3 秒</option><option value="5000">等待 5 秒</option>
+      </select>
+      <button id="insertWaitButton" class="button ghost">插入等待</button>
+      <button id="finishRecordingButton" class="button primary">结束并保存</button>
+      <button id="cancelRecordingButton" class="button danger">取消</button>
+    </div>
+  </section>
+
+  <section id="playbackBar" class="action-session-bar playback hidden" aria-live="polite">
+    <div><strong id="playbackTitle">动作执行</strong><span id="playbackSummary">准备中</span></div>
+    <div class="session-actions">
+      <button id="pauseActionButton" class="button ghost">暂停</button>
+      <button id="resumeActionButton" class="button ghost hidden">继续</button>
+      <button id="stopActionButton" class="button danger">停止动作</button>
+      <button id="copyDiagnosticsButton" class="button ghost hidden">复制中断原因</button>
+    </div>
+  </section>
+
+  <div id="alarmOverlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="alarmTitle">
+    <section class="settings-card alarm-dialog">
+      <div class="panel-heading"><h2 id="alarmTitle">机械臂报警</h2><button id="alarmClose" class="button ghost" type="button">关闭</button></div>
+      <p id="alarmSummary" class="alarm-summary" aria-live="polite">等待连接后读取报警</p>
+      <p id="alarmFreshness" class="gripper-detail"></p>
+      <div id="alarmList" class="alarm-list"></div>
+      <p id="alarmOperation" class="alarm-operation" aria-live="polite"></p>
+      <div class="alarm-actions">
+        <button id="alarmRefresh" class="button" type="button" disabled>刷新报警</button>
+        <button id="alarmClearSystem" class="button danger" type="button" disabled>清除系统报警</button>
+      </div>
+      <p id="alarmBlockReason" class="gripper-detail"></p>
+      <p class="gripper-detail">排除报警原因后再清除。清除不会自动继续运动或给关节上使能；夹爪自身故障需单独处理。</p>
+    </section>
+  </div>
+
+  <div id="actionOverlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="actionLibraryTitle">
+    <section class="settings-card action-library-card">
+      <div class="library-heading">
+        <div><h2 id="actionLibraryTitle">动作库</h2><p>中文名称保存在遥控器；拖动轨迹保存在机械臂控制器。速度用于回起点和遥控路点。</p></div>
+        <button id="actionLibraryClose" class="button ghost">关闭</button>
+      </div>
+
+      <section class="new-action-panel">
+        <input id="newActionName" class="address-input" maxlength="80" placeholder="输入中文动作名称" aria-label="新动作名称">
+        <span>速度</span><input id="newActionSpeed" class="address-input port" type="number" min="1" max="30" value="5">
+        <button id="startRemoteRecordingButton" class="button primary">遥控录制</button>
+        <button id="startDragRecordingButton" class="button primary">拖动录制</button>
+      </section>
+
+      <section class="controller-import-panel">
+        <div><h3>读取机械臂拖动轨迹</h3><p>导入前请把机械臂放在该轨迹起点，当前位置将用于自动回起点。</p><p id="controllerTrajectoryStatus">连接后自动检查轨迹文件接口。</p></div>
+        <select id="controllerTrajectorySelect" class="compact-select"><option value="">尚未读取</option></select>
+        <input id="importActionName" class="address-input" maxlength="80" placeholder="中文显示名称">
+        <button id="refreshTrajectoryButton" class="button ghost">刷新</button>
+        <button id="importTrajectoryButton" class="button ghost">加入动作库</button>
+      </section>
+
+      <div class="library-list-heading"><h3>已保存动作</h3><span id="actionCount">0 个动作</span></div>
+      <div id="actionList" class="action-list"><p class="empty-state">还没有动作。</p></div>
+    </section>
+  </div>
+
+  <div id="settingsOverlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <section class="settings-card">
+      <h2 id="settingsTitle">机械臂连接设置</h2>
+      <p>填写机械臂地址，并配置失联自动停止时间。</p>
+        <div class="endpoint" aria-label="机械臂网络地址">
+          <input id="robotIp" class="address-input ip" value="192.168.33.80" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="机械臂 IP">
+          <span>:</span>
+          <input id="robotPort" class="address-input port" value="8080" inputmode="numeric" aria-label="机械臂端口">
+        </div>
+      <button id="settingsDisconnect" class="button ghost" type="button" disabled>断开后修改地址</button>
+      <p>按住保护始终开启：信号超过 0.5 秒未更新，或单次按住达到 5 秒，将请求停止并确认停稳。停止确认失败时保持连接重试。</p>
+      <div class="watchdog-setting hidden" aria-hidden="true">
+        <label class="watchdog-switch" for="watchdogEnabled">
+          <input id="watchdogEnabled" type="checkbox" checked aria-label="启用失联自动停止">
+          <span class="watchdog-track"></span>
+        </label>
+        <span>失联自动停止</span>
+        <input id="watchdogSeconds" class="address-input port" type="number" min="1" max="30" step="1" value="5" inputmode="numeric" aria-label="失联停止秒数">
+        <span>秒（1～30）</span>
+      </div>
+
+      <section class="joint-limit-settings" aria-labelledby="jointLimitTitle">
+        <h3 id="jointLimitTitle">六轴自由度限制（°）</h3>
+        <p>实际限位由控制器读取；软件范围和提前停止角度可分别设置。</p>
+        <div class="joint-limit-table-wrap">
+          <table class="joint-limit-table">
+            <thead><tr><th>关节</th><th>实际最小</th><th>实际最大</th><th>软件最小</th><th>软件最大</th><th>提前停止</th></tr></thead>
+            <tbody id="jointLimitRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <p id="settingsError" class="settings-error" aria-live="polite"></p>
+      <div class="settings-actions"><button id="settingsCancel" class="button ghost">取消</button><button id="settingsSave" class="button primary">保存设置</button></div>
+    </section>
+  </div>
+  <script src="preview-bridge.js"></script>
+  <script src="action-domain.js"></script>
+  <script src="vendor/three.min.js"></script>
+  <script src="rm65-model.js"></script>
+  <script src="pose3d.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

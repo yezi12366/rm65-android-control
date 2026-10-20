@@ -1,0 +1,37 @@
+# Android / Gradle
+.gradle/
+.kotlin/
+.idea/
+.android/
+**/build/
+local.properties
+*.iml
+.cxx/
+.externalNativeBuild/
+
+# Local signatures and credentials
+.android-signing/
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+
+# Build artifacts and local device data
+*.apk
+*.aab
+*.apks
+*.zip
+*.log
+artifacts/
+device-backup*/
+
+# OS / editor / Python
+.DS_Store
+Thumbs.db
+.vscode/
+__pycache__/
+*.py[cod]

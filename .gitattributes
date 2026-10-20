@@ -1,0 +1,19 @@
+* text=auto
+*.kt text eol=lf
+*.kts text eol=lf
+*.js text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary
+*.STL binary
+
+# Preserve upstream formatting in vendored assets and source meshes.
+app/src/main/assets/vendor/** -whitespace
+docs/model-source/** -whitespace
